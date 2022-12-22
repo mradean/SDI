@@ -1,24 +1,15 @@
 {smcl}
-{* https://www.stata.com/manuals14/u18.pdf}
-{* https://www.stata.com/manuals/psmcl.pdf}
-{* https://www.stata-journal.com/software/sj10-4/st0043_2/parmest.hlp}
-{* *! version 1 31july2022}{...}
-{vieweralsosee "[R] help" "help help "}{...}
+{* *! version 1 7Dec2022}{...}
 {viewerjumpto "Syntax" "sdii##syntax"}{...}
 {viewerjumpto "Description" "sdii##description"}{...}
 {viewerjumpto "Options" "sdii##options"}{...}
 {viewerjumpto "Examples" "sdii##examples"}{...}
-{viewerjumpto "The Users' Manual" "sdii##manual"}{...}
-{viewerjumpto "Syntax of at()" "sdii##atspec"}{...}
-{viewerjumpto "Syntax of atdxs()" "sdii##atdxspec"}{...}
-{viewerjumpto "Syntax of dxspec()" "sdii##dxspec"}{...}
-{viewerjumpto "Syntax of firstdiff()" "sdii##fdspec"}{...}
-{viewerjumpto "Syntax of nunit()" "sdii##nunit"}{...}
+{viewerjumpto "The User's Manual" "sdii##manual"}{...}
 {viewerjumpto "Stored results" "sdii##results"}{...}
 {title:Title}
 
 {phang}
-{cmd:sdii} {hline 2} computes significance of differences intervals (SDIs)
+{cmd:sdii} {hline 2} compute significance of differences intervals (SDIs)
 
 
 {marker syntax}{...}
@@ -212,7 +203,7 @@ Note: Syntax elements within square brackets [] are optional. Underlining indica
 {title:Examples}
 
 {pstd}
-These examples are intended for quick reference. For a more detailed overview of {cmd:sdii} and examples with discussion, see {browse "ginteff_manual.sdii":The {cmd:sdii} Users' Manual}.  
+These examples are intended for quick reference. For a more detailed overview of {cmd:sdii} and examples with discussion, see {browse "sdii_manual.sdii":The {cmd:sdii} User's Manual}.  
 
 {pstd}
 Example 1: Compute SDIs to compare independent distributions
@@ -296,10 +287,10 @@ Example 12: Compute SDIs to compare {cmd:margins} results
 
 
 {marker manual}{...}
-{title:The Users' Manual}
+{title:The User's Manual}
 
 {pstd}
-{browse "sdii_manual.pdf":The {cmd:sdii} Users' Manual}{p_end}
+{browse "sdii_manual.pdf":The {cmd:sdii} User's Manual}{p_end}
 
 	   
 {marker results}{...}
@@ -333,5 +324,5 @@ Example 12: Compute SDIs to compare {cmd:margins} results
 {synopt:{cmd:r(type)}}type of the uncertainty interval{p_end}
 
 {p2col 5 20 24 2:Matrices}{p_end}
-{synopt:{cmd:r(sdii)}}matrix containing the compared estimates (and, if requested, the difference in estimates) with their standard errors, test statistics, p-values, degrees of freedom, critical values, uncertainty intervals, and confidence level{p_end}
+{synopt:{cmd:r(sdii)}}matrix containing the compared statistics with their standard errors, test statistics, p-values, degrees of freedom, critical values, lower and upper confidence limits, and confidence level of the uncertainty{p_end}
 {p2colreset}{...}

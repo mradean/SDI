@@ -1,3 +1,4 @@
+*! version 1 7Dec2022
 
 program sdii
 	version 14.2
@@ -48,7 +49,7 @@ program sdii
 				else scalar `rho' = `correlation'
 			}
 
-			local inf `in' `if'
+			marksample touse
 
 			if ("`weight'"!="") {
 				if ("`varlist'"=="") {
@@ -184,7 +185,8 @@ program sdii
 				}
 				else if ("`2'"=="" & "`by'"=="") {
 					tempvar 2
-					__s_var2 `2' = `var2', ifn(`inf')
+					gen `2' = `var2' if `touse'
+					replace `touse' = 0 if (`2'==. & `touse')
 				}
 				
 				if ("`reverse'"!="" & "`by'"=="") {
@@ -199,10 +201,10 @@ program sdii
 					if ("`distribution'"=="") {
 						if ("`by'"=="") {
 							if (!`unpair') {
-								corr `1' `2' `inf'
+								corr `1' `2' if `touse'
 								scalar `rho' = r(rho)
 							}
-							ttest `1'==`2' `inf', `unpaired' `options'
+							ttest `1'==`2' if `touse', `unpaired' `options'
 							mata: __s_sd = st_numscalar("r(se)")*sqrt(st_numscalar("r(N_1)"))
 						}
 						else {
@@ -210,7 +212,7 @@ program sdii
 								cap sum `by', meanonly
 								local bymi `r(min)'
 								local bymx `r(max)'
-								ttest `1' `inf', by(`by') `options'
+								ttest `1' if `touse', by(`by') `options'
 								if (r(N_1)==r(N_2)) local equnp 1
 							}
 							else {
@@ -221,7 +223,7 @@ program sdii
 								local bymi `r(max)'
 								local bymx `r(min)'
 								recode `byrev' (`r(min)'=`r(max)') (`r(max)'=`r(min)')
-								ttest `1' `inf', by(`byrev') `options'
+								ttest `1' if `touse', by(`byrev') `options'
 								if (r(N_1)==r(N_2)) local equnp 1
 							}
 						}
@@ -236,26 +238,23 @@ program sdii
 							exit 198
 						}
 
-						sum `1' `inf'
+						sum `1' if `touse'
 						local sample1 `r(mean)' `r(sd)'
-						sum `2' `inf'
+						sum `2' if `touse'
 						local sample2 `r(mean)' `r(sd)'
-						corr `1' `2' `inf'
+						corr `1' `2' if `touse'
 						scalar `rho' = r(rho)
 						
 						local varlist
 					}					
 				}
 				else {
-					if ("`if'"!="") local inf `inf' & `1'!=. & `2'!=.
-					else local inf `inf' if `1'!=. & `2'!=.
-
-					sum `1' `inf' `wght'
+					sum `1' if `touse' `wght'
 					replace `df' = r(N)-1 in 1/2
 					mata: __s_s1 = st_numscalar("r(sd)")
 					gen double `statis' = r(mean) in 1
 					gen double `std_err' = r(sd)/sqrt(r(N)) in 1
-					sum `2' `inf' `wght'
+					sum `2' if `touse' `wght'
 					mata: __s_s2 = st_numscalar("r(sd)")
 					replace `statis' = r(mean) in 2
 					replace `std_err' = r(sd)/sqrt(r(N)) in 2
@@ -268,27 +267,27 @@ program sdii
 				
 					gen `diff' = `1'-`2'
 					local dlb = .5*(100-`level')
-					_pctile `diff' `inf' `wght', p(`dlb' `=100-`dlb'') `alt'
+					_pctile `diff' if `touse' `wght', p(`dlb' `=100-`dlb'') `alt'
 					gen double `lo_sdi' = r(r1) in 3
 					gen double `hi_sdi' = r(r2) in 3
 					mata: __s_rhs = st_numscalar("r(r1)")-strtoreal(st_local("mvalue"))
 
 					numlist ".5(.5)50"
-					_pctile `1' `inf' `wght', p(`r(numlist)') `alt'
+					_pctile `1' if `touse' `wght', p(`r(numlist)') `alt'
 					mata: __s_pct = J(100,2,.)
 					mata: for (i=1; i<=100; i++) __s_pct[i,1] = st_numscalar("r(r"+strofreal(i)+")")		
 					numlist "50(.5)99.5"
-					_pctile `2' `inf' `wght', p(`r(numlist)') `alt'
+					_pctile `2' if `touse' `wght', p(`r(numlist)') `alt'
 					mata: for (i=1; i<=100; i++) __s_pct[i,2] = st_numscalar("r(r"+strofreal(101-i)+")")
-					sum `1' `inf' `wght', meanonly
+					sum `1' if `touse' `wght', meanonly
 					mata: __s_pct = (st_numscalar("r(min)"),.) \ __s_pct
-					sum `2' `inf' `wght', meanonly
+					sum `2' if `touse' `wght', meanonly
 					mata: __s_pct[1,2] = st_numscalar("r(max)")
 
 					gen str14 `levtype' = ""
 					tempname kp
 					mata: __s_k=__s_lev=__s_lhs = .
-					mata: __s_centile(__s_k,__s_lev,__s_lhs,__s_pct,__s_rhs,"`1'","`2'","`kp'","`levtype'")
+					mata: centile(__s_k,__s_lev,__s_lhs,__s_pct,__s_rhs,"`1'","`2'","`kp'","`levtype'")
 					if ("`switch'"!="") {
 						local switch `1'
 						local 1 `2'
@@ -299,17 +298,17 @@ program sdii
 					if (inlist(`kp',0,50)) {
 						if ("`median'"!="") {
 							replace `std_err' = `std_err'*1.2533 in 1/2
-							_pctile `1' `inf' `wght', p(50) `alt'
+							_pctile `1' if `touse' `wght', p(50) `alt'
 							replace `statis' = r(r1) in 1
-							_pctile `2' `inf' `wght', p(50) `alt'
+							_pctile `2' if `touse' `wght', p(50) `alt'
 							replace `statis' = r(r1) in 2
 						}
 						
 						if (`kp'==0) {
-							sum `1' `inf' `wght', meanonly
+							sum `1' if `touse' `wght', meanonly
 							replace `lo_sdi' = r(min) in 1
 							replace `hi_sdi' = r(max) in 1
-							sum `2' `inf' `wght', meanonly
+							sum `2' if `touse' `wght', meanonly
 							replace `lo_sdi' = r(min) in 2
 							replace `hi_sdi' = r(max) in 2
 						}
@@ -320,20 +319,20 @@ program sdii
 					}
 					else {
 						if ("`median'"=="") {
-							_pctile `1' `inf' `wght', p(`=`kp'' `=100-`kp'') `alt'
+							_pctile `1' if `touse' `wght', p(`=`kp'' `=100-`kp'') `alt'
 							replace `lo_sdi' = r(r1) in 1
 							replace `hi_sdi' = r(r2) in 1
-							_pctile `2' `inf' `wght', p(`=`kp'' `=100-`kp'') `alt'
+							_pctile `2' if `touse' `wght', p(`=`kp'' `=100-`kp'') `alt'
 							replace `lo_sdi' = r(r1) in 2
 							replace `hi_sdi' = r(r2) in 2
 						}
 						else {
 							replace `std_err' = `std_err'*1.2533 in 1/2
-							_pctile `1' `inf' `wght', p(`=`kp'' 50 `=100-`kp'') `alt'
+							_pctile `1' if `touse' `wght', p(`=`kp'' 50 `=100-`kp'') `alt'
 							replace `statis' = r(r2) in 1
 							replace `lo_sdi' = r(r1) in 1
 							replace `hi_sdi' = r(r3) in 1
-							_pctile `2' `inf' `wght', p(`=`kp'' 50 `=100-`kp'') `alt'
+							_pctile `2' if `touse' `wght', p(`=`kp'' 50 `=100-`kp'') `alt'
 							replace `statis' = r(r2) in 2
 							replace `lo_sdi' = r(r1) in 2
 							replace `hi_sdi' = r(r3) in 2
@@ -341,14 +340,14 @@ program sdii
 					}
 
 					if ("`difference'"!="") {
-						sum `diff' `inf' `wght'
+						sum `diff' if `touse' `wght'
 						mata: __s_sd = st_numscalar("r(sd)")
 						replace `std_err' = r(sd)/sqrt(r(N)) in 3
 						if ("`switch'"=="") {
 							if ("`median'"=="") replace `statis' = r(mean) in 3
 							else {
 								replace `std_err' = `std_err'*1.2533 in 3
-								_pctile `diff' `inf' `wght', p(50) `alt'
+								_pctile `diff' if `touse' `wght', p(50) `alt'
 								replace `statis' = r(r1) in 3
 							}
 						}
@@ -356,7 +355,7 @@ program sdii
 							if ("`median'"=="") replace `statis' = -r(mean) in 3
 							else {
 								replace `std_err' = `std_err'*1.2533 in 3
-								_pctile `diff' `inf' `wght', p(50) `alt'
+								_pctile `diff' if `touse' `wght', p(50) `alt'
 								replace `statis' = -r(r1) in 3
 							}
 							tempname lo
@@ -374,11 +373,11 @@ program sdii
 					}
 					else if (`mvalue') {
 						if ("`median'"=="") {
-							sum `diff' `inf' `wght', meanonly
+							sum `diff' if `touse' `wght', meanonly
 							local rval `r(mean)'
 						}
 						else {
-							_pctile `diff' `inf' `wght', p(50) `alt'
+							_pctile `diff' if `touse' `wght', p(50) `alt'
 							local rval `r(r1)'
 						}
 						if (`rval' & sign(`mvalue')!=sign(`rval')) local mtext = sign(`mvalue')
@@ -389,7 +388,7 @@ program sdii
 			}
 	
 			if ("`varlist'"=="") {
-				if ("`inf'"!="") {
+				if ("`in'"!="" | "`if'"!="") {
 					di as err "{bf:in} and {bf:if} qualifiers require {it:varlist}"
 					exit 198
 				}				
@@ -486,7 +485,7 @@ program sdii
 					gen	double `zt_d' = .
 					gen	str14 `levtype' = ""
 					mata: __s_lev = .
-					mata: __s_tlevel(__s_lev,"`zts'","`zt_d'","`std_err'","`levtype'")
+					mata: tlevel(__s_lev,"`zts'","`zt_d'","`std_err'","`levtype'")
 				}
 				
 				if (inlist(r(sd_1),0,.) | inlist(r(sd_2),0,.)) {
@@ -778,28 +777,25 @@ program sdii
 		local rc = _rc
 		cap if ("`N1'"!="") drop in `N1'/`=_N'
 		cap mata: mata drop __s_*
+		mata: st_rclear()
 		exit(`rc')
 	}
 	else {
+		tempname myr 
+		_return hold `myr'
 		cap if ("`N1'"!="") drop in `N1'/`=_N'
 		cap mata: mata drop __s_*
+		_return restore `myr'
 	}
 
-end
-
-
-program __s_var2
-	version 14.2
-
-	syntax newvarname(max=1 numeric generate)=exp [, ifn(str) ]
-	replace `varlist' `exp' `ifn'
 end
 
 
 version 14.2
-mata:
 
-	void __s_centile(__s_k,__s_lev,__s_lhs,__s_pct,__s_rhs,string scalar v1,string scalar v2,string scalar pk,string scalar typ) {
+mata
+
+	void centile(__s_k,__s_lev,__s_lhs,__s_pct,__s_rhs,string scalar v1,string scalar v2,string scalar pk,string scalar typ) {
 		__s_lhs = __s_pct[,1]:-__s_pct[,2]
 		perc = range(0,50,.5) , range(100,50,.5)		
 		prec = 1/10^strtoreal(st_local("precision"))
@@ -809,37 +805,37 @@ mata:
 			if (__s_lhs[i]>__s_rhs & i!=1) continue
 			else if (__s_lhs[i]<__s_rhs & i!=101) {
 				__s_k = perc[i,1] , .05
-				__s_lefths(__s_k,__s_lhs,v1,v2)
+				lefths(__s_k,__s_lhs,v1,v2)
 
 				for (j=10; j>0; j--) {
 					if (__s_lhs[j]>__s_rhs) continue
 					else if (__s_lhs[j]<__s_rhs) {
 						__s_k = __s_k[1]+(j-1)*.05 , .005
-						__s_lefths(__s_k,__s_lhs,v1,v2)
+						lefths(__s_k,__s_lhs,v1,v2)
 					
 						for (k=10; k>0; k--) {
 							if (__s_lhs[k]>__s_rhs) continue
 							else if (__s_lhs[k]<__s_rhs) {
 								__s_k = __s_k[1]+(k-1)*.005 , .0005
-								__s_lefths(__s_k,__s_lhs,v1,v2)
+								lefths(__s_k,__s_lhs,v1,v2)
 
 								for (l=10; l>0; l--) {
 									if (__s_lhs[l]>__s_rhs) continue
 									else if (__s_lhs[l]<__s_rhs) {
 										__s_k = __s_k[1]+(l-1)*.0005 , .00005
-										__s_lefths(__s_k,__s_lhs,v1,v2)
+										lefths(__s_k,__s_lhs,v1,v2)
 										
 										for (m=10; m>0; m--) {
 											if (__s_lhs[m]>__s_rhs) continue
 											else if (__s_lhs[m]<__s_rhs) {
 												__s_k = __s_k[1]+(m-1)*.00005 , .000005
-												__s_lefths(__s_k,__s_lhs,v1,v2)
+												lefths(__s_k,__s_lhs,v1,v2)
 
 												for (n=10; n>0; n--) {
 													if (__s_lhs[n]>__s_rhs) continue
 													else if (__s_lhs[n]<__s_rhs) {
 														__s_k = __s_k[1]+(n-1)*.000005 , .0000005
-														__s_lefths(__s_k,__s_lhs,v1,v2)
+														lefths(__s_k,__s_lhs,v1,v2)
 
 														for (o=10; o>0; o--) {
 															if (__s_lhs[o]>__s_rhs) continue
@@ -885,21 +881,21 @@ mata:
 		st_sstore((1,2),typ,sdi)
 	}
 
-	void __s_lefths(__s_k,__s_lhs,v1,v2) {
+	void lefths(__s_k,__s_lhs,v1,v2) {
 
 			perc = range(__s_k[1],__s_k[1]+(10*__s_k[2]-__s_k[2]),__s_k[2]) , range(100-__s_k[1],100-(__s_k[1]+(10*__s_k[2]-__s_k[2])),__s_k[2])
 			pct = J(10,2,.)
 			st_local("numl",invtokens(strofreal(perc[,1]',"%10.7f")))
-			stata("_pctile "+v1+st_local(" inf")+st_local("wght")+", p("+st_local("numl")+")"+st_local("alt"))
+			stata("_pctile "+v1+st_local(`" if `touse' "')+st_local("wght")+", p("+st_local("numl")+")"+st_local("alt"))
 			for (i=1; i<=10; i++) pct[i,1] = st_numscalar("r(r"+strofreal(i)+")")
 			st_local("numl",invtokens(strofreal(sort(perc[,2],1)',"%10.7f")))
-			stata("_pctile "+v2+st_local(" inf")+st_local("wght")+", p("+st_local("numl")+")"+st_local("alt"))
+			stata("_pctile "+v2+st_local(`" if `touse' "')+st_local("wght")+", p("+st_local("numl")+")"+st_local("alt"))
 			for (i=1; i<=10; i++) pct[i,2] = st_numscalar("r(r"+strofreal(11-i)+")")
 			
 			__s_lhs = pct[,1]:-pct[,2]
 	}
 
-	void __s_tlevel(__s_lev,string scalar ts,string scalar td,string scalar se,string scalar typ) {
+	void tlevel(__s_lev,string scalar ts,string scalar td,string scalar se,string scalar typ) {
 
 		prec = 1/10^strtoreal(st_local("precision"))
 		ts = st_numscalar(ts)
